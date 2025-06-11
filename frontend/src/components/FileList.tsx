@@ -6,6 +6,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
 import { fileService } from "../services/fileService";
+import debounce from "lodash.debounce";
 
 export const FileList: React.FC = () => {
   const queryClient = useQueryClient();
@@ -19,9 +20,10 @@ export const FileList: React.FC = () => {
   } = useQuery({
     queryKey: ["files", searchQuery], // Include searchQuery in queryKey
     queryFn: () => fileService.getFiles({ original_filename: searchQuery }),
-    // OR if you implemented the search endpoint:
-    // queryFn: () => searchQuery ? fileService.searchFiles(searchQuery) : fileService.getFiles(),
   });
+
+  const debounceFn = debounce(setSearchQuery, 500);
+
   // Mutation for deleting files
   const deleteMutation = useMutation({
     mutationFn: fileService.deleteFile,
@@ -125,7 +127,7 @@ export const FileList: React.FC = () => {
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
             placeholder="Search files..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={async (e) => await debounceFn(e.target.value)}
           />
         </div>
       </div>
