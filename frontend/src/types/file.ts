@@ -6,11 +6,9 @@ export interface File {
   uploaded_at: string;
   file: string;
 }
-export interface FileFilterOptions {
+export type SortOrder = 'asc' | 'desc';
+export type FileFilterOptions = {
   original_filename?: string;
   file_type?: string;
-  min_size?: number;
-  max_size?: number;
-  uploaded_after?: string; // ISO date string
-  uploaded_before?: string; // ISO date string
-}
+  size_sort?: SortOrder;
+};

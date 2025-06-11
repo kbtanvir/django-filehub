@@ -4,25 +4,50 @@ import {
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import React, { useState } from "react";
-import { fileService } from "../services/fileService";
 import debounce from "lodash.debounce";
+import React, { useEffect, useMemo, useState } from "react";
+import { fileService } from "../services/fileService";
+import { FileFilterOptions, SortOrder } from "../types/file";
 
 export const FileList: React.FC = () => {
   const queryClient = useQueryClient();
+  const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  // Create the debounced function once and memoize it
 
-  // Query for fetching files
+  // Create the debounced function with useMemo to prevent recreation
+  const debouncedSetSearch = useMemo(
+    () => debounce(value => setSearchQuery(value), 500),
+    []
+  );
+
+  // Update search query when input changes
+  useEffect(() => {
+    debouncedSetSearch(inputValue);
+
+    // Cleanup function to cancel pending debounced calls
+    return () => {
+      debouncedSetSearch.cancel();
+    };
+  }, [inputValue, debouncedSetSearch]);
+
+  const [fileTypeFilter, setFileTypeFilter] = useState<string>("");
+  const [sizeSort, setSizeSort] = useState<SortOrder | "">("");
+
+  // Updated query with all filters
   const {
     data: files,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["files", searchQuery], // Include searchQuery in queryKey
-    queryFn: () => fileService.getFiles({ original_filename: searchQuery }),
+    queryKey: ["files", searchQuery, fileTypeFilter, sizeSort],
+    queryFn: () =>
+      fileService.getFiles({
+        original_filename: searchQuery,
+        file_type: fileTypeFilter,
+        size_sort: sizeSort || undefined,
+      } as FileFilterOptions),
   });
-
-  const debounceFn = debounce(setSearchQuery, 500);
 
   // Mutation for deleting files
   const deleteMutation = useMutation({
@@ -43,6 +68,7 @@ export const FileList: React.FC = () => {
     }) => fileService.downloadFile(fileUrl, filename),
   });
 
+  //
   const handleDelete = async (id: string) => {
     try {
       await deleteMutation.mutateAsync(id);
@@ -107,28 +133,57 @@ export const FileList: React.FC = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-gray-900">Uploaded Files</h2>
-        <div className="relative w-64">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg
-              className="h-5 w-5 text-gray-400"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
+        <div className="relative ">
+          <div className="flex space-x-4">
+            {/* File Type Filter */}
+            <select
+              className="block w-40 pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+              value={fileTypeFilter}
+              onChange={e => setFileTypeFilter(e.target.value)}
             >
-              <path
-                fillRule="evenodd"
-                d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                clipRule="evenodd"
+              <option value="">All Types</option>
+              <option value="image">Images</option>
+              <option value="application/pdf">PDFs</option>
+              <option value="text">Text Files</option>
+              <option value="video">Videos</option>
+            </select>
+
+            {/* Size Sort */}
+            <select
+              className="block w-40 pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
+              value={sizeSort}
+              onChange={e => setSizeSort(e.target.value as SortOrder | "")}
+            >
+              <option value="">Default Order</option>
+              <option value="asc">Size (Smallest First)</option>
+              <option value="desc">Size (Largest First)</option>
+            </select>
+
+            {/* Search Input (existing) */}
+            <div className="relative w-64">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="Search files..."
+                value={inputValue}
+                onChange={e => setInputValue(e.target.value)}
               />
-            </svg>
+            </div>
           </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-            placeholder="Search files..."
-            value={searchQuery}
-            onChange={async (e) => await debounceFn(e.target.value)}
-          />
         </div>
       </div>
 
