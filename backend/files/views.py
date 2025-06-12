@@ -12,8 +12,7 @@ from django_filters import rest_framework as filters
 class FileFilter(filters.FilterSet):
     original_filename = filters.CharFilter(lookup_expr='icontains')
     file_type = filters.CharFilter(lookup_expr='icontains')
-    min_size = filters.NumberFilter(field_name='size', lookup_expr='gte')
-    max_size = filters.NumberFilter(field_name='size', lookup_expr='lte')
+    size_sort = filters.CharFilter(method='filter_by_size')
     uploaded_after = filters.DateTimeFilter(
         field_name='uploaded_at', lookup_expr='gte')
     uploaded_before = filters.DateTimeFilter(
@@ -22,6 +21,13 @@ class FileFilter(filters.FilterSet):
     class Meta:
         model = File
         fields = ['original_filename', 'file_type', 'size', 'uploaded_at']
+
+    def filter_by_size(self, queryset, name, value):
+        if value.lower() == 'asc':
+            return queryset.order_by('size')
+        elif value.lower() == 'desc':
+            return queryset.order_by('-size')
+        return queryset
 
 
 class FileViewSet(viewsets.ModelViewSet):

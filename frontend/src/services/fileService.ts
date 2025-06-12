@@ -27,6 +27,10 @@ export const fileService = {
       });
     }
 
+    if (filterOptions?.size_sort) {
+      params.append("size_sort", filterOptions.size_sort); // Make sure this matches the backend parameter name
+    }
+
     const response = await axios.get(`${API_URL}/files/`, {
       params,
     });
