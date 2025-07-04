@@ -2,6 +2,10 @@
 
 A full-stack file management application built with React and Django, designed for efficient file handling and storage.
 
+![image](https://github.com/user-attachments/assets/4deddd2b-68cf-4c41-843b-f8b125fab8d4)
+
+
+
 ## 🚀 Technology Stack
 
 ### Backend
