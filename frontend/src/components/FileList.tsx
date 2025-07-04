@@ -1,9 +1,11 @@
 import {
   ArrowDownTrayIcon,
   DocumentIcon,
+  MagnifyingGlassIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import debounce from "lodash.debounce";
 import React, { useEffect, useMemo, useState } from "react";
 import { fileService } from "../services/fileService";
@@ -13,7 +15,16 @@ export const FileList: React.FC = () => {
   const queryClient = useQueryClient();
   const [inputValue, setInputValue] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  // Create the debounced function once and memoize it
+  const [fileTypeFilter, setFileTypeFilter] = useState<string>("");
+  const [sizeSort, setSizeSort] = useState<SortOrder | "">("");
+  const [minSize, setMinSize] = useState<number | "">("");
+  const [maxSize, setMaxSize] = useState<number | "">("");
+  const [dateFilter, setFilters] =
+    useState<FileFilterOptions["uploaded_date"]>("");
+
+  const handleDateChange = (type: keyof FileFilterOptions, value?: string) => {
+    setFilters(value ? format(new Date(value), "yyyy-MM-dd") : undefined);
+  };
 
   // Create the debounced function with useMemo to prevent recreation
   const debouncedSetSearch = useMemo(
@@ -31,21 +42,29 @@ export const FileList: React.FC = () => {
     };
   }, [inputValue, debouncedSetSearch]);
 
-  const [fileTypeFilter, setFileTypeFilter] = useState<string>("");
-  const [sizeSort, setSizeSort] = useState<SortOrder | "">("");
-
   // Updated query with all filters
   const {
     data: files,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["files", searchQuery, fileTypeFilter, sizeSort],
+    queryKey: [
+      "files",
+      searchQuery,
+      fileTypeFilter,
+      sizeSort,
+      dateFilter,
+      minSize,
+      maxSize,
+    ],
     queryFn: () =>
       fileService.getFiles({
         original_filename: searchQuery,
         file_type: fileTypeFilter,
         size_sort: sizeSort || undefined,
+        uploaded_date: dateFilter,
+        min_size: minSize !== "" ? Number(minSize) * 1024 : undefined,
+        max_size: maxSize !== "" ? Number(maxSize) * 1024 : undefined,
       } as FileFilterOptions),
   });
 
@@ -67,7 +86,15 @@ export const FileList: React.FC = () => {
       filename: string;
     }) => fileService.downloadFile(fileUrl, filename),
   });
-
+  const clearFilters = () => {
+    setInputValue("");
+    setSearchQuery("");
+    setFileTypeFilter("");
+    setSizeSort("");
+    setFilters(undefined);
+    setMinSize("");
+    setMaxSize("");
+  };
   //
   const handleDelete = async (id: string) => {
     try {
@@ -131,60 +158,95 @@ export const FileList: React.FC = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-900">Uploaded Files</h2>
-        <div className="relative ">
-          <div className="flex space-x-4">
-            {/* File Type Filter */}
-            <select
-              className="block w-40 pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-              value={fileTypeFilter}
-              onChange={e => setFileTypeFilter(e.target.value)}
-            >
-              <option value="">All Types</option>
-              <option value="image">Images</option>
-              <option value="application/pdf">PDFs</option>
-              <option value="text">Text Files</option>
-              <option value="video">Videos</option>
-            </select>
-
-            {/* Size Sort */}
-            <select
-              className="block w-40 pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md"
-              value={sizeSort}
-              onChange={e => setSizeSort(e.target.value as SortOrder | "")}
-            >
-              <option value="">Default Order</option>
-              <option value="asc">Size (Smallest First)</option>
-              <option value="desc">Size (Largest First)</option>
-            </select>
-
-            {/* Search Input (existing) */}
-            <div className="relative w-64">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg
-                  className="h-5 w-5 text-gray-400"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <input
-                type="text"
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="Search files..."
-                value={inputValue}
-                onChange={e => setInputValue(e.target.value)}
-              />
+      <div className="mb-6">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search Input */}
+          <div className="relative w-48 min-w-[160px]">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
             </div>
+            <input
+              type="text"
+              className="block w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+              placeholder="Search files..."
+              value={inputValue}
+              onChange={e => setInputValue(e.target.value)}
+            />
           </div>
+
+          {/* File Type Filter */}
+          <select
+            className="w-32 py-1.5 pl-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+            value={fileTypeFilter}
+            onChange={e => setFileTypeFilter(e.target.value)}
+          >
+            <option value="">All Types</option>
+            <option value="image">Images</option>
+            <option value="application/pdf">PDFs</option>
+            <option value="text">Text Files</option>
+            <option value="video">Videos</option>
+          </select>
+
+          {/* Size Range */}
+          <div className="flex items-center space-x-2">
+            <select
+            className="w-32 py-1.5 pl-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+              value={minSize}
+              onChange={e => setMinSize(Number(e.target.value))}
+            >
+              <option value="">Min size</option>
+              <option value="0">0 KB</option>
+              <option value="100">100 KB</option>
+              <option value="500">500 KB</option>
+              <option value="1024">1 MB</option>
+              <option value="2048">2 MB</option>
+            </select>
+
+            <select
+            className="w-32 py-1.5 pl-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+              value={maxSize}
+              onChange={e => setMaxSize(Number(e.target.value))}
+            >
+              <option value="">Max size</option>
+              <option value="0">0 KB</option>
+              <option value="100">100 KB</option>
+              <option value="500">500 KB</option>
+              <option value="1024">1 MB</option>
+              <option value="2048">2 MB</option>
+            </select>
+            <span className="text-gray-400">-</span>
+          </div>
+
+          {/* Date Filter */}
+          <input
+            type="date"
+            className="w-32 py-1.5 px-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+            onChange={e => handleDateChange("uploaded_date", e.target.value)}
+          />
+
+          {/* Size Sort */}
+          <select
+            className="w-36 py-1.5 pl-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+            value={sizeSort}
+            onChange={e => setSizeSort(e.target.value as SortOrder | "")}
+          >
+            <option value="">Sort by</option>
+            <option value="asc">Size ▲</option>
+            <option value="desc">Size ▼</option>
+          </select>
+
+          {/* Clear Filters */}
+          <button
+            onClick={clearFilters}
+            className="py-1.5 px-3 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            Clear All
+          </button>
         </div>
+      </div>
+
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Uploaded Files</h2>
       </div>
 
       {!files || files.length === 0 ? (

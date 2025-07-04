@@ -1,20 +1,13 @@
-FROM node:18-alpine
-
+FROM node:18-alpine as builder
+RUN npm install -g pnpm
 WORKDIR /app
-
-# Install dependencies
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
-
-# Copy project files
 COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm run build
 
-# Build the application
-RUN npm run build
-
-# Install serve to run the application
+FROM node:18-alpine
 RUN npm install -g serve
-
+WORKDIR /app
+COPY --from=builder /app/build ./build
 EXPOSE 3000
-
-CMD ["serve", "-s", "build", "-l", "3000"] 
+CMD ["serve", "-s", "build", "-l", "3000"]

@@ -10,17 +10,20 @@ from django_filters import rest_framework as filters
 
 
 class FileFilter(filters.FilterSet):
+    uploaded_date = filters.DateFilter(
+        field_name='uploaded_at',
+        lookup_expr='date',
+        label='Filter by upload date (YYYY-MM-DD)'
+    )
     original_filename = filters.CharFilter(lookup_expr='icontains')
     file_type = filters.CharFilter(lookup_expr='icontains')
     size_sort = filters.CharFilter(method='filter_by_size')
-    uploaded_after = filters.DateTimeFilter(
-        field_name='uploaded_at', lookup_expr='gte')
-    uploaded_before = filters.DateTimeFilter(
-        field_name='uploaded_at', lookup_expr='lte')
-
+    min_size = filters.NumberFilter(field_name='size', lookup_expr='gte')
+    max_size = filters.NumberFilter(field_name='size', lookup_expr='lte')
+    
     class Meta:
         model = File
-        fields = ['original_filename', 'file_type', 'size', 'uploaded_at']
+        fields = ['original_filename', 'file_type', 'size', 'uploaded_at','min_size', 'max_size']
 
     def filter_by_size(self, queryset, name, value):
         if value.lower() == 'asc':
